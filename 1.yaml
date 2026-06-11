@@ -1,0 +1,12 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "First cloud template formation"
+Resources:
+  MyEC2Instance:
+   AWS::EC2::Instance
+  Permissions:
+  ImageID: String,
+  KeyName: String,
+  SecurityGroups: 
+  -String,
+  InstanceType: String,
+
