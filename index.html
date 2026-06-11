@@ -179,10 +179,10 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
   <div id="view-login" class="view">
     <div class="card-head">
       <h1>Welcome back</h1>
-      <p>Select your account — you'll need to pass a live face check to sign in</p>
+      <p>Your face will be verified automatically when the page loads.</p>
     </div>
     <div class="sec-badge">
-      🔒 Anti-spoofing active: blink detection + motion analysis + 75% match required
+      🔒 Auto verification enabled: blink detection + motion analysis + 55% match required
     </div>
     <div id="user-list" class="user-list"></div>
     <div class="btn-area">
@@ -270,7 +270,7 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
     </div>
     <div class="lcheck" id="lc-match">
       <div class="lcheck-icon">✓</div>
-      <div class="lcheck-label">Identity match ≥75%</div>
+      <div class="lcheck-label">Identity match ≥55%</div>
     </div>
   </div>
 
@@ -297,6 +297,7 @@ let loginRunning = false;
 let regStream = null;
 let regRunning = false;
 let currentUser = null;
+let autoLoginTimer = null;
 
 function $(id){ return document.getElementById(id) }
 function initials(n){ return n.trim().split(/\s+/).map(w=>w[0]).join('').slice(0,2).toUpperCase() }
@@ -312,7 +313,10 @@ function toast(msg, type=''){
 function showView(id){
   document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
   $(id).classList.add('active');
-  if(id==='view-login') renderUsers();
+  if(id==='view-login'){
+    renderUsers();
+    attemptAutoLogin();
+  }
   if(id==='view-register'){
     $('btn-capture').disabled=true;
     $('reg-status').className='status-bar detecting';
@@ -320,6 +324,27 @@ function showView(id){
     startRegCam();
   }
   if(id!=='view-register') stopRegCam();
+}
+
+function getPreferredUser(){
+  const users=getUsers();
+  if(!users.length) return null;
+  return users.reduce((best,user)=>{
+    if(!best) return user;
+    if(!best.lastLogin) return user;
+    if(!user.lastLogin) return best;
+    return new Date(user.lastLogin) > new Date(best.lastLogin) ? user : best;
+  }, null);
+}
+
+function attemptAutoLogin(){
+  if(currentUser || loginRunning) return;
+  const user = getPreferredUser();
+  if(!user) return;
+  clearTimeout(autoLoginTimer);
+  autoLoginTimer = setTimeout(()=>{
+    if(!currentUser && !loginRunning) startLogin(user.id);
+  }, 400);
 }
 
 /* ───────────── MODEL LOADING ───────────── */
@@ -356,6 +381,10 @@ function renderUsers(){
       </div>
       <span class="face-badge">Face ID</span>
     </div>`).join('');
+  const autoNote = document.createElement('div');
+  autoNote.style.cssText = 'padding:12px 28px 18px;color:var(--muted);font-size:12px;';
+  autoNote.textContent = 'Auto verification will start for the last signed-in user whenever the page reloads.';
+  list.appendChild(autoNote);
 }
 
 /* ───────────── REGISTER CAM ───────────── */
