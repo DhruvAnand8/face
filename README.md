@@ -1,30 +1,49 @@
-# FacePass Website
+# FacePass React + Node App
 
-This repo hosts a static HTML website for the FacePass biometric login demo.
+This repository now contains a React frontend and a Node.js backend for the FacePass login demo.
 
-## Local preview in VS Code
+## Setup
 
-1. Open the folder `/Users/admin/AWS` in VS Code.
-2. Install the `Live Server` extension if you do not already have it.
-3. Open `index.html`.
-4. Right-click the file and choose `Open with Live Server`.
-
-## GitHub Pages deployment
-
-1. Create a GitHub repo.
-2. Add the repo remote and push the project:
+1. Install backend dependencies:
 
 ```bash
-git remote add origin https://github.com/USERNAME/REPO.git
-git branch -M main
-git push -u origin main
+cd /Users/admin/AWS/server
+npm install
 ```
 
-3. On GitHub, go to `Settings` → `Pages`.
-4. Set the source branch to `main` and the folder to `/ (root)`.
-5. Save and wait a few minutes for the published URL.
+2. Install frontend dependencies:
+
+```bash
+cd /Users/admin/AWS/client
+npm install
+```
+
+## Development
+
+Start the backend:
+
+```bash
+cd /Users/admin/AWS/server
+npm run dev
+```
+
+Start the frontend:
+
+```bash
+cd /Users/admin/AWS/client
+npm run dev
+```
+
+Then open the URL shown by Vite (usually `http://localhost:5173`).
+
+## API
+
+- `GET /api/users` — list registered users
+- `POST /api/users` — register a new user
+- `PUT /api/users/:id/login` — update last login time
+- `DELETE /api/users/:id` — delete a user
 
 ## Notes
 
-- The page uses the browser camera and must be opened over HTTPS for full camera support.
-- GitHub Pages will serve the static file automatically once the repo is published.
+- The frontend uses `face-api.js` and the browser camera.
+- The backend stores users in `server/data/users.json`.
