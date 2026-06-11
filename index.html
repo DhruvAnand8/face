@@ -1,0 +1,694 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FacePass — Secure Face Login</title>
+<script defer src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#07080f;--surface:#0f1018;--surface2:#181921;--surface3:#21222e;
+  --border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.13);
+  --text:#eeeef5;--muted:#6b6c82;
+  --accent:#5c6fff;--accent-dim:rgba(92,111,255,0.18);--accent-light:#a0aaff;
+  --green:#1fd98a;--green-dim:rgba(31,217,138,0.15);
+  --red:#ff5464;--red-dim:rgba(255,84,100,0.15);
+  --yellow:#f5c842;--r:14px;--rs:9px;
+}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px}
+
+.logo{display:flex;align-items:center;gap:10px;margin-bottom:32px}
+.logo-mark{width:36px;height:36px;background:var(--accent);border-radius:10px;display:flex;align-items:center;justify-content:center}
+.logo-mark svg{width:20px;height:20px}
+.logo-name{font-size:19px;font-weight:700;letter-spacing:-.4px}
+.logo-name em{color:var(--accent-light);font-style:normal}
+
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);width:100%;max-width:480px;overflow:hidden}
+.view{display:none}.view.active{display:block}
+
+/* LOADING */
+.loading-screen{padding:48px 32px;text-align:center}
+.spinner{width:40px;height:40px;border:2px solid var(--border2);border-top-color:var(--accent);border-radius:50%;animation:spin .9s linear infinite;margin:0 auto 20px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading-screen h2{font-size:16px;font-weight:500;margin-bottom:6px}
+.loading-screen p{font-size:13px;color:var(--muted)}
+.load-steps{margin-top:20px;text-align:left;display:inline-block}
+.load-step{font-size:12px;color:var(--muted);padding:3px 0;display:flex;align-items:center;gap:8px}
+.load-step.done{color:var(--green)}.load-step.active{color:var(--text)}
+.step-dot{width:6px;height:6px;border-radius:50%;background:currentColor;flex-shrink:0}
+
+/* CARD HEADER */
+.card-head{padding:28px 28px 20px;border-bottom:1px solid var(--border)}
+.card-head h1{font-size:20px;font-weight:700;margin-bottom:5px}
+.card-head p{font-size:13px;color:var(--muted);line-height:1.5}
+
+/* CAM */
+.cam-wrap{padding:20px 28px;display:flex;flex-direction:column;align-items:center}
+.cam-box{position:relative;width:100%;max-width:380px;border-radius:12px;overflow:hidden;background:#000;border:1px solid var(--border2)}
+.cam-box video{width:100%;display:block;transform:scaleX(-1)}
+.cam-box canvas{position:absolute;top:0;left:0;width:100%;height:100%;transform:scaleX(-1)}
+.cam-overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none}
+.face-guide{width:160px;height:200px;border:2px solid rgba(92,111,255,0.5);border-radius:50% 50% 50% 50%/60% 60% 40% 40%;position:relative}
+.face-guide::before,.face-guide::after{content:'';position:absolute;background:var(--accent);border-radius:2px}
+.face-guide::before{top:-2px;left:20%;width:20%;height:3px}
+.face-guide::after{top:-2px;right:20%;width:20%;height:3px}
+
+.status-bar{width:100%;max-width:380px;margin-top:10px;padding:10px 14px;border-radius:var(--rs);background:var(--surface2);border:1px solid var(--border);font-size:13px;display:flex;align-items:center;gap:9px;min-height:40px}
+.status-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;background:var(--muted)}
+.status-bar.detecting .status-dot{background:var(--yellow);animation:pulse 1s ease-in-out infinite}
+.status-bar.found .status-dot{background:var(--green)}
+.status-bar.error .status-dot{background:var(--red)}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+
+/* FORM */
+.form-area{padding:0 28px 24px}
+.field{margin-bottom:16px}
+.field label{display:block;font-size:12px;font-weight:500;color:var(--muted);margin-bottom:6px;letter-spacing:.3px;text-transform:uppercase}
+.field input{width:100%;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--rs);color:var(--text);font-size:14px;padding:10px 13px;outline:none;transition:border-color .15s;font-family:inherit}
+.field input:focus{border-color:var(--accent)}
+.field input::placeholder{color:var(--muted)}
+
+/* BUTTONS */
+.btn{width:100%;padding:12px;border-radius:var(--rs);border:none;font-size:14px;font-weight:600;cursor:pointer;transition:opacity .15s,transform .1s;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px}
+.btn:active:not(:disabled){transform:scale(.98)}.btn:disabled{opacity:.4;cursor:not-allowed}
+.btn-primary{background:var(--accent);color:#fff}.btn-primary:hover:not(:disabled){opacity:.85}
+.btn-outline{background:transparent;border:1px solid var(--border2);color:var(--text);margin-top:10px}
+.btn-outline:hover:not(:disabled){border-color:var(--accent);color:var(--accent-light)}
+.btn-red{background:var(--red);color:#fff;margin-top:10px}.btn-red:hover:not(:disabled){opacity:.85}
+.btn-area{padding:0 28px 28px;display:flex;flex-direction:column}
+
+/* USER LIST */
+.user-list{padding:12px 28px 8px}
+.user-item{display:flex;align-items:center;gap:13px;padding:13px;border-radius:var(--rs);border:1px solid var(--border);background:var(--surface2);cursor:pointer;transition:border-color .15s,background .15s;margin-bottom:9px}
+.user-item:hover{border-color:var(--accent);background:var(--accent-dim)}
+.avatar{width:42px;height:42px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;flex-shrink:0;background:var(--accent-dim);color:var(--accent-light);border:1px solid rgba(92,111,255,0.25)}
+.user-info{flex:1;min-width:0}.user-name{font-size:14px;font-weight:600}
+.user-sub{font-size:11px;color:var(--muted);margin-top:2px}
+.face-badge{font-size:11px;padding:3px 9px;border-radius:20px;background:var(--green-dim);color:var(--green);border:1px solid rgba(31,217,138,0.2);flex-shrink:0}
+
+/* EMPTY */
+.empty{padding:36px 28px;text-align:center;color:var(--muted)}
+.empty svg{width:44px;height:44;opacity:.2;margin-bottom:12px}
+.empty p{font-size:13px;line-height:1.6}
+
+/* DASHBOARD */
+.dash-head{padding:26px 28px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:14px}
+.dash-avatar{width:52px;height:52px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:19px;font-weight:700;background:var(--accent-dim);color:var(--accent-light);border:2px solid var(--accent);flex-shrink:0}
+.dash-info h2{font-size:17px;font-weight:700}
+.dash-info p{font-size:12px;color:var(--muted);margin-top:3px}
+.verified-badge{margin-left:auto;padding:4px 10px;background:var(--green-dim);color:var(--green);border:1px solid rgba(31,217,138,0.2);border-radius:20px;font-size:11px;font-weight:600;white-space:nowrap}
+.dash-body{padding:22px 28px}
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:11px;margin-bottom:18px}
+.stat{background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs);padding:14px}
+.stat-label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.7px;margin-bottom:5px}
+.stat-val{font-size:20px;font-weight:700}.stat-val.green{color:var(--green)}
+.info-row{background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs);padding:13px 15px;margin-bottom:11px}
+.info-row-label{font-size:11px;color:var(--muted);margin-bottom:3px}
+.info-row-val{font-size:13px;font-weight:500}
+.dash-foot{padding:0 28px 26px;display:flex;gap:10px}
+.dash-foot .btn{width:auto;flex:1}
+
+/* SCAN OVERLAY */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,0.9);display:none;flex-direction:column;align-items:center;justify-content:center;z-index:200;padding:24px}
+.overlay.show{display:flex}
+.overlay-cam-wrap{position:relative;width:260px;height:260px;border-radius:50%;overflow:hidden;border:2px solid var(--accent);margin-bottom:20px}
+.overlay-cam-wrap video{width:100%;height:100%;object-fit:cover;transform:scaleX(-1)}
+.overlay-cam-wrap canvas{position:absolute;top:0;left:0;width:100%;height:100%;transform:scaleX(-1)}
+.scan-ring{position:absolute;inset:-6px;border-radius:50%;border:2.5px solid transparent;border-top-color:var(--accent);animation:spin .9s linear infinite}
+.scan-ring.success{border-top-color:var(--green);animation:none}
+.scan-ring.error{border-top-color:var(--red);animation:none}
+.scan-ring.warn{border-top-color:var(--yellow);animation:none}
+
+/* LIVENESS CHECKS UI */
+.liveness-checks{display:flex;flex-direction:column;gap:7px;width:260px;margin-bottom:16px}
+.lcheck{display:flex;align-items:center;gap:9px;font-size:12px;padding:8px 12px;border-radius:var(--rs);background:var(--surface2);border:1px solid var(--border)}
+.lcheck-icon{width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;flex-shrink:0;border:1px solid var(--border2);color:var(--muted)}
+.lcheck.pass .lcheck-icon{background:var(--green-dim);border-color:rgba(31,217,138,0.3);color:var(--green)}
+.lcheck.active .lcheck-icon{background:var(--accent-dim);border-color:rgba(92,111,255,0.3);color:var(--accent-light);animation:pulse 1s infinite}
+.lcheck.fail .lcheck-icon{background:var(--red-dim);border-color:rgba(255,84,100,0.3);color:var(--red)}
+.lcheck-label{color:var(--text);flex:1}.lcheck.pass .lcheck-label{color:var(--green)}
+.lcheck.fail .lcheck-label{color:var(--red)}
+
+.conf-bar-wrap{width:260px;margin-top:4px}
+.conf-bar-label{display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-bottom:5px}
+.conf-bar{height:4px;background:var(--surface3);border-radius:4px;overflow:hidden}
+.conf-fill{height:100%;border-radius:4px;background:var(--accent);transition:width .3s,background .3s;width:0}
+.overlay-title{font-size:17px;font-weight:700;margin-top:14px;text-align:center}
+.overlay-sub{font-size:12px;color:var(--muted);text-align:center;max-width:260px;margin-top:5px;line-height:1.5}
+.overlay-cancel{margin-top:18px;background:transparent;border:1px solid var(--border2);color:var(--muted);font-size:12px;padding:8px 20px;border-radius:8px;cursor:pointer;font-family:inherit;transition:border-color .15s,color .15s}
+.overlay-cancel:hover{border-color:var(--text);color:var(--text)}
+
+/* TOAST */
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--surface2);border:1px solid var(--border2);color:var(--text);padding:10px 18px;border-radius:var(--rs);font-size:13px;font-weight:500;opacity:0;transition:opacity .2s;z-index:300;white-space:nowrap}
+.toast.show{opacity:1}.toast.ok{border-color:rgba(31,217,138,0.35);color:var(--green)}.toast.err{border-color:rgba(255,84,100,0.35);color:var(--red)}
+
+/* SECURITY BADGE */
+.sec-badge{margin:12px 28px 0;padding:10px 14px;background:rgba(92,111,255,0.07);border:1px solid rgba(92,111,255,0.18);border-radius:var(--rs);font-size:12px;color:var(--accent-light);line-height:1.6;display:flex;gap:8px;align-items:flex-start}
+</style>
+</head>
+<body>
+
+<div class="logo">
+  <div class="logo-mark">
+    <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/>
+      <circle cx="12" cy="12" r="3"/>
+    </svg>
+  </div>
+  <div class="logo-name">Face<em>Pass</em></div>
+</div>
+
+<div class="card" id="main-card">
+
+  <!-- LOADING -->
+  <div id="view-loading" class="view active">
+    <div class="loading-screen">
+      <div class="spinner"></div>
+      <h2>Loading face recognition models</h2>
+      <p>Downloading neural network weights…</p>
+      <div class="load-steps">
+        <div class="load-step active" id="ls-1"><span class="step-dot"></span> Face detector</div>
+        <div class="load-step" id="ls-2"><span class="step-dot"></span> Landmark predictor</div>
+        <div class="load-step" id="ls-3"><span class="step-dot"></span> Face recognizer</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- LOGIN -->
+  <div id="view-login" class="view">
+    <div class="card-head">
+      <h1>Welcome back</h1>
+      <p>Select your account — you'll need to pass a live face check to sign in</p>
+    </div>
+    <div class="sec-badge">
+      🔒 Anti-spoofing active: blink detection + motion analysis + 75% match required
+    </div>
+    <div id="user-list" class="user-list"></div>
+    <div class="btn-area">
+      <button class="btn btn-outline" onclick="showView('view-register')">+ Register new face</button>
+    </div>
+  </div>
+
+  <!-- REGISTER -->
+  <div id="view-register" class="view">
+    <div class="card-head">
+      <h1>Register your face</h1>
+      <p>Enter your name, position your face in the oval, then click Capture.</p>
+    </div>
+    <div class="cam-wrap">
+      <div class="cam-box" id="reg-cam-box">
+        <video id="reg-video" autoplay muted playsinline></video>
+        <canvas id="reg-canvas"></canvas>
+        <div class="cam-overlay"><div class="face-guide"></div></div>
+      </div>
+      <div id="reg-status" class="status-bar detecting">
+        <span class="status-dot"></span>
+        <span id="reg-status-text">Starting camera…</span>
+      </div>
+    </div>
+    <div class="form-area">
+      <div class="field">
+        <label>Your name</label>
+        <input type="text" id="reg-name" placeholder="e.g. Priya Sharma" autocomplete="name"/>
+      </div>
+    </div>
+    <div class="btn-area">
+      <button id="btn-capture" class="btn btn-primary" onclick="captureAndRegister()" disabled>Capture &amp; Register Face</button>
+      <button class="btn btn-outline" onclick="stopCamAndGo('view-login')">Back</button>
+    </div>
+  </div>
+
+  <!-- DASHBOARD -->
+  <div id="view-dashboard" class="view">
+    <div class="dash-head">
+      <div id="dash-av" class="dash-avatar"></div>
+      <div class="dash-info">
+        <h2 id="dash-name">–</h2>
+        <p id="dash-sub">–</p>
+      </div>
+      <div class="verified-badge">✓ Verified</div>
+    </div>
+    <div class="dash-body">
+      <div class="stats">
+        <div class="stat"><div class="stat-label">Status</div><div class="stat-val green">Active</div></div>
+        <div class="stat"><div class="stat-label">Method</div><div class="stat-val" style="font-size:13px;margin-top:3px">Face AI</div></div>
+      </div>
+      <div class="info-row"><div class="info-row-label">Match confidence</div><div class="info-row-val" id="dash-conf">–</div></div>
+      <div class="info-row"><div class="info-row-label">Liveness checks passed</div><div class="info-row-val" id="dash-liveness">–</div></div>
+      <div class="info-row"><div class="info-row-label">Last sign-in</div><div class="info-row-val" id="dash-login">–</div></div>
+    </div>
+    <div class="dash-foot">
+      <button class="btn btn-outline" onclick="signOut()">Sign out</button>
+      <button class="btn btn-red" onclick="deleteMe()" style="flex:0.6">Remove</button>
+    </div>
+  </div>
+
+</div>
+
+<!-- SCAN OVERLAY -->
+<div id="scan-overlay" class="overlay">
+  <div class="overlay-cam-wrap">
+    <video id="scan-video" autoplay muted playsinline></video>
+    <canvas id="scan-canvas"></canvas>
+    <div id="scan-ring" class="scan-ring"></div>
+  </div>
+
+  <!-- live liveness check indicators -->
+  <div class="liveness-checks">
+    <div class="lcheck" id="lc-blink">
+      <div class="lcheck-icon">👁</div>
+      <div class="lcheck-label">Blink detected</div>
+    </div>
+    <div class="lcheck" id="lc-motion">
+      <div class="lcheck-icon">↔</div>
+      <div class="lcheck-label">Natural face motion</div>
+    </div>
+    <div class="lcheck" id="lc-texture">
+      <div class="lcheck-icon">◈</div>
+      <div class="lcheck-label">Skin texture analysis</div>
+    </div>
+    <div class="lcheck" id="lc-match">
+      <div class="lcheck-icon">✓</div>
+      <div class="lcheck-label">Identity match ≥75%</div>
+    </div>
+  </div>
+
+  <div class="conf-bar-wrap">
+    <div class="conf-bar-label"><span>Face match confidence</span><span id="conf-pct">0%</span></div>
+    <div class="conf-bar"><div id="conf-fill" class="conf-fill"></div></div>
+  </div>
+  <div id="overlay-title" class="overlay-title">Look at the camera</div>
+  <div id="overlay-sub" class="overlay-sub">Keep your face centered and blink naturally</div>
+  <button class="overlay-cancel" onclick="cancelLogin()">Cancel</button>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script>
+const MODEL_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model';
+const DB_KEY = 'facepass_v3';
+const MATCH_THRESHOLD = 75;   // minimum confidence % to accept
+const DIST_SCALE = 0.55;      // tighter scale → stricter matching
+
+let loginTarget = null;
+let loginStream = null;
+let loginRunning = false;
+let regStream = null;
+let regRunning = false;
+let currentUser = null;
+
+function $(id){ return document.getElementById(id) }
+function initials(n){ return n.trim().split(/\s+/).map(w=>w[0]).join('').slice(0,2).toUpperCase() }
+function getUsers(){ try{ return JSON.parse(localStorage.getItem(DB_KEY)||'[]') }catch{ return [] } }
+function saveUsers(u){ localStorage.setItem(DB_KEY, JSON.stringify(u)) }
+
+function toast(msg, type=''){
+  const t=$('toast'); t.textContent=msg;
+  t.className='toast show '+(type==='ok'?'ok':type==='err'?'err':'');
+  clearTimeout(t._t); t._t=setTimeout(()=>t.classList.remove('show'),3000);
+}
+
+function showView(id){
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  $(id).classList.add('active');
+  if(id==='view-login') renderUsers();
+  if(id==='view-register'){
+    $('btn-capture').disabled=true;
+    $('reg-status').className='status-bar detecting';
+    $('reg-status-text').textContent='Starting camera…';
+    startRegCam();
+  }
+  if(id!=='view-register') stopRegCam();
+}
+
+/* ───────────── MODEL LOADING ───────────── */
+async function loadModels(){
+  const steps=['ls-1','ls-2','ls-3'];
+  const loaders=[
+    ()=>faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
+    ()=>faceapi.nets.faceLandmark68TinyNet.loadFromUri(MODEL_URL),
+    ()=>faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL)
+  ];
+  for(let i=0;i<loaders.length;i++){
+    $(steps[i]).classList.add('active');
+    try{ await loaders[i](); }catch(e){ console.error(e); }
+    $(steps[i]).classList.add('done');
+    if(i+1<steps.length) $(steps[i+1]).classList.add('active');
+  }
+  showView('view-login');
+}
+
+/* ───────────── USER LIST ───────────── */
+function renderUsers(){
+  const users=getUsers();
+  const list=$('user-list');
+  if(!users.length){
+    list.innerHTML=`<div class="empty"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"/></svg><p>No accounts registered yet.<br>Add your face to get started.</p></div>`;
+    return;
+  }
+  list.innerHTML=users.map(u=>`
+    <div class="user-item" onclick="startLogin('${u.id}')">
+      <div class="avatar">${initials(u.name)}</div>
+      <div class="user-info">
+        <div class="user-name">${u.name}</div>
+        <div class="user-sub">Registered ${new Date(u.createdAt).toLocaleDateString()}</div>
+      </div>
+      <span class="face-badge">Face ID</span>
+    </div>`).join('');
+}
+
+/* ───────────── REGISTER CAM ───────────── */
+async function startRegCam(){
+  try{
+    regStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'user',width:640,height:480}});
+    const vid=$('reg-video'); vid.srcObject=regStream; await vid.play();
+    regRunning=true; regDetectLoop();
+  }catch(e){
+    $('reg-status').className='status-bar error';
+    $('reg-status-text').textContent='Camera access denied';
+  }
+}
+
+async function regDetectLoop(){
+  const vid=$('reg-video'),canvas=$('reg-canvas');
+  if(!regRunning) return;
+  if(vid.readyState===4){
+    canvas.width=vid.videoWidth; canvas.height=vid.videoHeight;
+    const det=await faceapi.detectSingleFace(vid,new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks(true);
+    const ctx=canvas.getContext('2d'); ctx.clearRect(0,0,canvas.width,canvas.height);
+    if(det){
+      faceapi.draw.drawDetections(canvas,[faceapi.resizeResults(det,{width:vid.videoWidth,height:vid.videoHeight})]);
+      $('reg-status').className='status-bar found';
+      $('reg-status-text').textContent='Face detected — ready to capture';
+      $('btn-capture').disabled=false;
+    } else {
+      $('reg-status').className='status-bar detecting';
+      $('reg-status-text').textContent='Looking for a face…';
+      $('btn-capture').disabled=true;
+    }
+  }
+  if(regRunning) requestAnimationFrame(regDetectLoop);
+}
+
+function stopRegCam(){
+  regRunning=false;
+  if(regStream){ regStream.getTracks().forEach(t=>t.stop()); regStream=null; }
+  const ctx=$('reg-canvas').getContext('2d');
+  ctx.clearRect(0,0,$('reg-canvas').width,$('reg-canvas').height);
+}
+function stopCamAndGo(view){ stopRegCam(); showView(view); }
+
+async function captureAndRegister(){
+  const name=$('reg-name').value.trim();
+  if(!name){ toast('Enter your name first','err'); $('reg-name').focus(); return; }
+  const users=getUsers();
+  if(users.find(u=>u.name.toLowerCase()===name.toLowerCase())){ toast('Name already registered','err'); return; }
+  $('btn-capture').disabled=true;
+  $('reg-status').className='status-bar detecting';
+  $('reg-status-text').textContent='Capturing face descriptor…';
+  const vid=$('reg-video');
+  const samples=[];
+  for(let i=0;i<8;i++){
+    const det=await faceapi.detectSingleFace(vid,new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks(true).withFaceDescriptor();
+    if(det) samples.push(Array.from(det.descriptor));
+    await new Promise(r=>setTimeout(r,150));
+  }
+  if(samples.length<3){ toast('No face detected. Try again.','err'); $('reg-status').className='status-bar error'; $('reg-status-text').textContent='No face detected'; $('btn-capture').disabled=false; return; }
+  const avg=samples[0].map((_,i)=>samples.reduce((s,d)=>s+d[i],0)/samples.length);
+  const user={ id:crypto.randomUUID(), name, descriptor:avg, createdAt:new Date().toISOString(), lastLogin:null };
+  users.push(user); saveUsers(users);
+  stopRegCam();
+  toast(`${name} registered!`,'ok');
+  $('reg-name').value='';
+  showView('view-login');
+}
+
+/* ───────────── ANTI-SPOOFING HELPERS ───────────── */
+
+function eyeAspectRatio(landmarks){
+  const pos = landmarks.positions;
+  function ear(pts){
+    const A = dist(pts[1],pts[5]);
+    const B = dist(pts[2],pts[4]);
+    const C = dist(pts[0],pts[3]);
+    return (A+B)/(2*C);
+  }
+  function dist(a,b){ return Math.hypot(a.x-b.x, a.y-b.y); }
+  const left  = ear([pos[36],pos[37],pos[38],pos[39],pos[40],pos[41]]);
+  const right = ear([pos[42],pos[43],pos[44],pos[45],pos[46],pos[47]]);
+  return (left+right)/2;
+}
+
+function noseTip(landmarks){ return landmarks.positions[30]; }
+
+function patchVariance(video, x, y, size=30){
+  const offscreen = document.createElement('canvas');
+  offscreen.width=size; offscreen.height=size;
+  const ctx=offscreen.getContext('2d');
+  ctx.drawImage(video, x-size/2, y-size/2, size, size, 0, 0, size, size);
+  const data=ctx.getImageData(0,0,size,size).data;
+  let sum=0,sum2=0,n=0;
+  for(let i=0;i<data.length;i+=4){
+    const lum=(data[i]*0.299+data[i+1]*0.587+data[i+2]*0.114);
+    sum+=lum; sum2+=lum*lum; n++;
+  }
+  const mean=sum/n;
+  return sum2/n - mean*mean;
+}
+
+/* ───────────── LOGIN / LIVENESS STATE ───────────── */
+let livenessState = {};
+
+function resetLivenessState(){
+  livenessState = {
+    earHistory: [],
+    noseHistory: [],
+    textureHistory: [],
+    blinkDetected: false,
+    motionDetected: false,
+    textureOk: false,
+    matchOk: false,
+    failCount: 0,
+    frameCount: 0,
+    startTime: Date.now()
+  };
+}
+
+function setCheck(id, state){
+  const el=$(id);
+  el.className='lcheck '+(state||'');
+  const icon=el.querySelector('.lcheck-icon');
+  if(state==='pass') icon.textContent='✓';
+  else if(state==='fail') icon.textContent='✗';
+  else if(state==='active') icon.textContent='…';
+  else icon.textContent = id==='lc-blink'?'👁':id==='lc-motion'?'↔':id==='lc-texture'?'◈':'✓';
+}
+
+function resetChecks(){
+  ['lc-blink','lc-motion','lc-texture','lc-match'].forEach(id=>setCheck(id,''));
+}
+
+async function startLogin(userId){
+  const users=getUsers();
+  loginTarget=users.find(u=>u.id===userId);
+  if(!loginTarget) return;
+
+  $('scan-overlay').classList.add('show');
+  $('scan-ring').className='scan-ring';
+  $('overlay-title').textContent=`Verifying ${loginTarget.name.split(' ')[0]}…`;
+  $('overlay-sub').textContent='Look at the camera and blink naturally';
+  $('conf-fill').style.width='0%'; $('conf-pct').textContent='0%';
+  resetChecks();
+  resetLivenessState();
+  ['lc-blink','lc-motion','lc-texture','lc-match'].forEach(id=>setCheck(id,'active'));
+
+  try{
+    loginStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'user',width:640,height:480}});
+    const vid=$('scan-video'); vid.srcObject=loginStream; await vid.play();
+    loginRunning=true;
+    loginDetectLoop();
+  }catch(e){
+    $('scan-ring').className='scan-ring error';
+    $('overlay-title').textContent='Camera denied';
+    $('overlay-sub').textContent='Please allow camera access and try again';
+  }
+}
+
+async function loginDetectLoop(){
+  if(!loginRunning) return;
+  const vid=$('scan-video'), canvas=$('scan-canvas');
+  if(vid.readyState!==4){ setTimeout(loginDetectLoop,80); return; }
+
+  canvas.width=vid.videoWidth; canvas.height=vid.videoHeight;
+  const det=await faceapi
+    .detectSingleFace(vid,new faceapi.TinyFaceDetectorOptions({inputSize:320}))
+    .withFaceLandmarks(false)
+    .withFaceDescriptor();
+
+  const ctx=canvas.getContext('2d');
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+
+  if(!det){
+    livenessState.frameCount++;
+    if(Date.now()-livenessState.startTime > 30000){
+      loginFail('No face detected. Please try again.');
+      return;
+    }
+    setTimeout(loginDetectLoop,120);
+    return;
+  }
+
+  faceapi.draw.drawDetections(canvas,[faceapi.resizeResults(det,{width:vid.videoWidth,height:vid.videoHeight})]);
+
+  const lm = det.landmarks;
+  livenessState.frameCount++;
+
+  const ear = eyeAspectRatio(lm);
+  livenessState.earHistory.push(ear);
+  if(livenessState.earHistory.length>60) livenessState.earHistory.shift();
+  if(!livenessState.blinkDetected){
+    const h=livenessState.earHistory;
+    const minEar=Math.min(...h);
+    const maxEar=Math.max(...h);
+    if(minEar < 0.21 && (maxEar-minEar) > 0.05){
+      livenessState.blinkDetected=true;
+      setCheck('lc-blink','pass');
+    }
+  }
+
+  const nose=noseTip(lm);
+  livenessState.noseHistory.push({x:nose.x,y:nose.y});
+  if(livenessState.noseHistory.length>40) livenessState.noseHistory.shift();
+  if(!livenessState.motionDetected && livenessState.noseHistory.length>=20){
+    const xs=livenessState.noseHistory.map(p=>p.x);
+    const ys=livenessState.noseHistory.map(p=>p.y);
+    const xRange=Math.max(...xs)-Math.min(...xs);
+    const yRange=Math.max(...ys)-Math.min(...ys);
+    if(xRange>2 || yRange>2){
+      livenessState.motionDetected=true;
+      setCheck('lc-motion','pass');
+    }
+  }
+
+  const noseX=Math.round(nose.x*(vid.videoWidth/canvas.width));
+  const noseY=Math.round(nose.y*(vid.videoHeight/canvas.height));
+  const variance=patchVariance(vid,noseX,noseY,40);
+  livenessState.textureHistory.push(variance);
+  if(livenessState.textureHistory.length>20) livenessState.textureHistory.shift();
+  if(!livenessState.textureOk && livenessState.textureHistory.length>=10){
+    const avgVar=livenessState.textureHistory.reduce((a,b)=>a+b,0)/livenessState.textureHistory.length;
+    const varOfVar=livenessState.textureHistory.reduce((s,v)=>s+Math.pow(v-avgVar,2),0)/livenessState.textureHistory.length;
+    if(avgVar > 40 && varOfVar > 30){
+      livenessState.textureOk=true;
+      setCheck('lc-texture','pass');
+    }
+  }
+
+  const dist=faceapi.euclideanDistance(det.descriptor, loginTarget.descriptor);
+  const conf=Math.max(0,Math.min(100,Math.round((1-dist/DIST_SCALE)*100)));
+  $('conf-fill').style.width=conf+'%';
+  $('conf-fill').style.background=conf>=MATCH_THRESHOLD?'var(--green)':conf>50?'var(--yellow)':'var(--red)';
+  $('conf-pct').textContent=conf+'%';
+
+  if(conf>=MATCH_THRESHOLD && !livenessState.matchOk){
+    livenessState.matchOk=true;
+    setCheck('lc-match','pass');
+  } else if(conf<MATCH_THRESHOLD && livenessState.matchOk){
+    livenessState.matchOk=false;
+    setCheck('lc-match','active');
+  }
+
+  if(!livenessState.blinkDetected){
+    $('overlay-sub').textContent='Please blink your eyes naturally';
+  } else if(!livenessState.motionDetected){
+    $('overlay-sub').textContent='Slight natural head movement detected…';
+  } else if(!livenessState.textureOk){
+    $('overlay-sub').textContent='Analyzing skin texture…';
+  } else if(!livenessState.matchOk){
+    $('overlay-sub').textContent=`Face match at ${conf}% — need ${MATCH_THRESHOLD}%`;
+  } else {
+    $('overlay-sub').textContent='All checks passed — confirming identity…';
+  }
+
+  const elapsed=Date.now()-livenessState.startTime;
+  if(!livenessState.blinkDetected && elapsed>20000){
+    setCheck('lc-blink','fail');
+    loginFail('No blink detected. Please do not use a photo or screen.');
+    return;
+  }
+  if(!livenessState.motionDetected && elapsed>25000){
+    setCheck('lc-motion','fail');
+    loginFail('No natural movement detected. Possible spoofing attempt blocked.');
+    return;
+  }
+
+  if(livenessState.blinkDetected && livenessState.motionDetected && livenessState.textureOk && livenessState.matchOk){
+    loginRunning=false;
+    $('scan-ring').className='scan-ring success';
+    $('overlay-title').textContent='Identity confirmed!';
+    $('overlay-sub').textContent='All security checks passed — signing you in…';
+    $('conf-fill').style.width='100%'; $('conf-pct').textContent=conf+'%';
+    setTimeout(()=>completeLogin(loginTarget, conf),1000);
+    return;
+  }
+
+  if(loginRunning) setTimeout(loginDetectLoop,100);
+}
+
+function loginFail(reason){
+  loginRunning=false;
+  $('scan-ring').className='scan-ring error';
+  $('overlay-title').textContent='Verification failed';
+  $('overlay-sub').textContent=reason;
+  toast(reason,'err');
+  setTimeout(()=>{
+    stopLoginCam();
+    $('scan-overlay').classList.remove('show');
+    resetChecks();
+  },3500);
+}
+
+function completeLogin(user, conf){
+  stopLoginCam();
+  $('scan-overlay').classList.remove('show');
+  resetChecks();
+  const users=getUsers();
+  const idx=users.findIndex(u=>u.id===user.id);
+  if(idx!==-1){ users[idx].lastLogin=new Date().toISOString(); saveUsers(users); user=users[idx]; }
+  currentUser=user;
+  $('dash-av').textContent=initials(user.name);
+  $('dash-name').textContent=user.name;
+  $('dash-sub').textContent='Member since '+new Date(user.createdAt).toLocaleDateString();
+  $('dash-conf').textContent=conf+'% match confidence';
+  $('dash-liveness').textContent='Blink ✓  Motion ✓  Texture ✓  Match ✓';
+  $('dash-login').textContent=new Date().toLocaleString([],{dateStyle:'medium',timeStyle:'short'});
+  showView('view-dashboard');
+  toast('Signed in as '+user.name.split(' ')[0],'ok');
+}
+
+function cancelLogin(){
+  loginRunning=false;
+  stopLoginCam();
+  $('scan-overlay').classList.remove('show');
+  resetChecks();
+}
+
+function stopLoginCam(){
+  loginRunning=false;
+  if(loginStream){ loginStream.getTracks().forEach(t=>t.stop()); loginStream=null; }
+  const ctx=$('scan-canvas').getContext('2d');
+  ctx.clearRect(0,0,$('scan-canvas').width,$('scan-canvas').height);
+}
+
+function signOut(){ currentUser=null; showView('view-login'); toast('Signed out'); }
+function deleteMe(){
+  if(!currentUser||!confirm(`Remove "${currentUser.name}"? This cannot be undone.`)) return;
+  saveUsers(getUsers().filter(u=>u.id!==currentUser.id));
+  currentUser=null; toast('Account removed'); showView('view-login');
+}
+
+window.addEventListener('load', loadModels);
+</script>
+</body>
+</html>
