@@ -3,7 +3,7 @@ import '@tensorflow/tfjs';
 import * as faceapi from 'face-api.js';
 
 const MODEL_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model';
-const MATCH_THRESHOLD = 75;
+const MATCH_THRESHOLD = 80;
 const DIST_SCALE = 1.3;
 
 const initialState = {
