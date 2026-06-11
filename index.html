@@ -523,7 +523,7 @@ async function loginDetectLoop(){
   canvas.width=vid.videoWidth; canvas.height=vid.videoHeight;
   const det=await faceapi
     .detectSingleFace(vid,new faceapi.TinyFaceDetectorOptions({inputSize:320}))
-    .withFaceLandmarks(false)
+    .withFaceLandmarks(true)
     .withFaceDescriptor();
 
   const ctx=canvas.getContext('2d');
