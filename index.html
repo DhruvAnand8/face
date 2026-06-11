@@ -182,7 +182,7 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
       <p>Your face will be verified automatically when the page loads.</p>
     </div>
     <div class="sec-badge">
-      🔒 Auto verification enabled: blink detection + motion analysis + 55% match required
+      🔒 Auto verification enabled: blink detection + motion analysis + 80% match required
     </div>
     <div id="user-list" class="user-list"></div>
     <div class="btn-area">
@@ -270,7 +270,7 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
     </div>
     <div class="lcheck" id="lc-match">
       <div class="lcheck-icon">✓</div>
-      <div class="lcheck-label">Identity match ≥70%</div>
+      <div class="lcheck-label">Identity match ≥80%</div>
     </div>
   </div>
 
@@ -288,7 +288,7 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 <script>
 const MODEL_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model';
 const DB_KEY = 'facepass_v3';
-const MATCH_THRESHOLD = 75;   // minimum confidence % to accept (raised for immediate accept)
+const MATCH_THRESHOLD = 80;   // minimum confidence % to accept (raised for immediate accept)
 const DIST_SCALE = 1.3;       // softer scale for more realistic face matching
 
 let loginTarget = null;
