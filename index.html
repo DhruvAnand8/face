@@ -288,7 +288,7 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 <script>
 const MODEL_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model';
 const DB_KEY = 'facepass_v3';
-const MATCH_THRESHOLD = 70;   // minimum confidence % to accept
+const MATCH_THRESHOLD = 75;   // minimum confidence % to accept (raised for immediate accept)
 const DIST_SCALE = 1.3;       // softer scale for more realistic face matching
 
 let loginTarget = null;
