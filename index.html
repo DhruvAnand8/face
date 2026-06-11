@@ -270,7 +270,7 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
     </div>
     <div class="lcheck" id="lc-match">
       <div class="lcheck-icon">✓</div>
-      <div class="lcheck-label">Identity match ≥55%</div>
+      <div class="lcheck-label">Identity match ≥70%</div>
     </div>
   </div>
 
@@ -288,8 +288,8 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 <script>
 const MODEL_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model';
 const DB_KEY = 'facepass_v3';
-const MATCH_THRESHOLD = 55;   // minimum confidence % to accept
-const DIST_SCALE = 1.2;       // softer scale → more realistic face match
+const MATCH_THRESHOLD = 70;   // minimum confidence % to accept
+const DIST_SCALE = 1.3;       // softer scale for more realistic face matching
 
 let loginTarget = null;
 let loginStream = null;
@@ -318,6 +318,7 @@ function showView(id){
     attemptAutoLogin();
   }
   if(id==='view-register'){
+    stopLoginCam();
     $('btn-capture').disabled=true;
     $('reg-status').className='status-bar detecting';
     $('reg-status-text').textContent='Starting camera…';
@@ -580,7 +581,7 @@ async function loginDetectLoop(){
     const h=livenessState.earHistory;
     const minEar=Math.min(...h);
     const maxEar=Math.max(...h);
-    if(minEar < 0.21 && (maxEar-minEar) > 0.05){
+    if(minEar < 0.235 && (maxEar-minEar) > 0.045){
       livenessState.blinkDetected=true;
       setCheck('lc-blink','pass');
     }
@@ -652,11 +653,12 @@ async function loginDetectLoop(){
     return;
   }
 
-  if(livenessState.blinkDetected && livenessState.motionDetected && livenessState.textureOk && livenessState.matchOk){
+  const canAutoComplete = livenessState.blinkDetected && livenessState.motionDetected && livenessState.matchOk;
+  if(canAutoComplete){
     loginRunning=false;
     $('scan-ring').className='scan-ring success';
     $('overlay-title').textContent='Identity confirmed!';
-    $('overlay-sub').textContent='All security checks passed — signing you in…';
+    $('overlay-sub').textContent='Face match and liveness checks passed — signing you in…';
     $('conf-fill').style.width='100%'; $('conf-pct').textContent=conf+'%';
     setTimeout(()=>completeLogin(loginTarget, conf),1000);
     return;
@@ -675,6 +677,7 @@ function loginFail(reason){
     stopLoginCam();
     $('scan-overlay').classList.remove('show');
     resetChecks();
+    attemptAutoLogin();
   },3500);
 }
 
