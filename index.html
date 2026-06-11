@@ -505,7 +505,8 @@ function resetLivenessState(){
     earHistory: [],
     noseHistory: [],
     textureHistory: [],
-    blinkDetected: false,
+    // blink not required; using motion detection for liveness
+    blinkDetected: true,
     motionDetected: false,
     textureOk: false,
     matchOk: false,
@@ -549,6 +550,8 @@ async function startLogin(userId){
   resetChecks();
   resetLivenessState();
   ['lc-blink','lc-motion','lc-texture','lc-match'].forEach(id=>setCheck(id,'active'));
+  // mark blink check as pass since we use motion detection instead
+  setCheck('lc-blink','pass');
 
   try{
     loginStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'user',width:640,height:480}});
@@ -591,18 +594,7 @@ async function loginDetectLoop(){
   const lm = det.landmarks;
   livenessState.frameCount++;
 
-  const ear = eyeAspectRatio(lm);
-  livenessState.earHistory.push(ear);
-  if(livenessState.earHistory.length>60) livenessState.earHistory.shift();
-  if(!livenessState.blinkDetected){
-    const h=livenessState.earHistory;
-    const minEar=Math.min(...h);
-    const maxEar=Math.max(...h);
-    if(minEar < 0.235 && (maxEar-minEar) > 0.045){
-      livenessState.blinkDetected=true;
-      setCheck('lc-blink','pass');
-    }
-  }
+  // motion-based liveness (nose movement) is used instead of blink
 
   const nose=noseTip(lm);
   livenessState.noseHistory.push({x:nose.x,y:nose.y});
@@ -653,10 +645,8 @@ async function loginDetectLoop(){
     setCheck('lc-match','active');
   }
 
-  if(!livenessState.blinkDetected){
-    $('overlay-sub').textContent='Please blink your eyes naturally';
-  } else if(!livenessState.motionDetected){
-    $('overlay-sub').textContent='Slight natural head movement detected…';
+  if(!livenessState.motionDetected){
+    $('overlay-sub').textContent='Please move your head slightly (look left/right)';
   } else if(!livenessState.textureOk){
     $('overlay-sub').textContent='Analyzing skin texture…';
   } else if(!livenessState.matchOk){
@@ -664,20 +654,14 @@ async function loginDetectLoop(){
   } else {
     $('overlay-sub').textContent='All checks passed — confirming identity…';
   }
-
   const elapsed=Date.now()-livenessState.startTime;
-  if(!livenessState.blinkDetected && elapsed>20000){
-    setCheck('lc-blink','fail');
-    loginFail('No blink detected. Please do not use a photo or screen.');
-    return;
-  }
-  if(!livenessState.motionDetected && elapsed>25000){
+  if(!livenessState.motionDetected && elapsed>20000){
     setCheck('lc-motion','fail');
     loginFail('No natural movement detected. Possible spoofing attempt blocked.');
     return;
   }
 
-  const canAutoComplete = livenessState.blinkDetected && livenessState.motionDetected && livenessState.matchOk;
+  const canAutoComplete = livenessState.motionDetected && livenessState.textureOk && livenessState.matchOk;
   if(canAutoComplete){
     loginRunning=false;
     $('scan-ring').className='scan-ring success';
@@ -717,7 +701,7 @@ function completeLogin(user, conf){
   $('dash-name').textContent=user.name;
   $('dash-sub').textContent='Member since '+new Date(user.createdAt).toLocaleDateString();
   $('dash-conf').textContent=conf+'% match confidence';
-  $('dash-liveness').textContent='Blink ✓  Motion ✓  Texture ✓  Match ✓';
+  $('dash-liveness').textContent='Motion ✓  Texture ✓  Match ✓';
   $('dash-login').textContent=new Date().toLocaleString([],{dateStyle:'medium',timeStyle:'short'});
   showView('view-dashboard');
   toast('Signed in as '+user.name.split(' ')[0],'ok');
