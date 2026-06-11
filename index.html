@@ -661,7 +661,8 @@ async function loginDetectLoop(){
     return;
   }
 
-  const canAutoComplete = livenessState.motionDetected && livenessState.textureOk && livenessState.matchOk;
+  // accept as soon as motion is detected and the face match meets threshold
+  const canAutoComplete = livenessState.motionDetected && livenessState.matchOk;
   if(canAutoComplete){
     loginRunning=false;
     $('scan-ring').className='scan-ring success';
