@@ -1,0 +1,199 @@
+:root {
+  color-scheme: dark;
+  font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: #07080f;
+  color: #eef0fb;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  background: radial-gradient(circle at top, rgba(92,111,255,0.1), transparent 35%),
+    linear-gradient(180deg, #090b12 0%, #06070f 100%);
+}
+
+button, input {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+.app-shell {
+  max-width: 880px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 22px;
+}
+
+.brand {
+  font-size: 1.35rem;
+  font-weight: 700;
+}
+
+.nav-actions button {
+  border: 1px solid rgba(255,255,255,0.1);
+  background: transparent;
+  color: inherit;
+  padding: 10px 16px;
+  border-radius: 10px;
+}
+
+.panel {
+  background: rgba(15,16,24,0.96);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 24px;
+  padding: 28px;
+  box-shadow: 0 28px 80px rgba(0,0,0,0.18);
+}
+
+.panel h1 {
+  margin-top: 0;
+  font-size: 1.65rem;
+}
+
+.panel p {
+  color: rgba(238,240,251,0.72);
+  line-height: 1.7;
+}
+
+.status-card {
+  margin: 20px 0;
+  padding: 18px;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 18px;
+  background: rgba(255,255,255,0.02);
+}
+
+.primary,
+button:not(.delete) {
+  border: none;
+  padding: 14px 18px;
+  border-radius: 14px;
+  color: white;
+  background: #5c6fff;
+  transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+.primary:hover,
+button:not(.delete):hover {
+  opacity: 0.92;
+  transform: translateY(-1px);
+}
+
+button.delete {
+  border: 1px solid rgba(255,84,100,0.3);
+  background: transparent;
+  color: #ff7b8f;
+}
+
+.user-list {
+  display: grid;
+  gap: 14px;
+  margin: 24px 0;
+}
+
+.user-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 18px;
+  padding: 16px;
+  background: rgba(255,255,255,0.03);
+}
+
+.user-card strong {
+  display: block;
+  font-size: 1rem;
+  margin-bottom: 6px;
+}
+
+.user-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.form-row {
+  display: grid;
+  gap: 12px;
+  margin: 20px 0;
+}
+
+.form-row label {
+  font-size: 0.85rem;
+  color: rgba(238,240,251,0.7);
+}
+
+.form-row input {
+  width: 100%;
+  padding: 14px 16px;
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,0.08);
+  background: rgba(255,255,255,0.03);
+  color: inherit;
+}
+
+.preview-video {
+  width: 100%;
+  min-height: 240px;
+  margin-top: 20px;
+  border-radius: 18px;
+  background: #080a13;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin: 24px 0;
+}
+
+.stats-grid div {
+  padding: 18px;
+  border-radius: 18px;
+  background: rgba(255,255,255,0.02);
+  border: 1px solid rgba(255,255,255,0.08);
+}
+
+.stats-grid strong {
+  display: block;
+  margin-bottom: 8px;
+  color: rgba(238,240,251,0.73);
+}
+
+.empty-state {
+  padding: 36px;
+  border-radius: 18px;
+  text-align: center;
+  background: rgba(255,255,255,0.02);
+}
+
+@media (max-width: 720px) {
+  .app-shell {
+    padding: 18px;
+  }
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
+  .topbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}

@@ -212,6 +212,14 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
         <label>Your name</label>
         <input type="text" id="reg-name" placeholder="e.g. Priya Sharma" autocomplete="name"/>
       </div>
+      <div class="field">
+        <label>Email ID</label>
+        <input type="email" id="reg-email" placeholder="e.g. priya@company.com" autocomplete="email"/>
+      </div>
+      <div class="field">
+        <label>Employer ID</label>
+        <input type="text" id="reg-employer-id" placeholder="e.g. EMP12345" autocomplete="off"/>
+      </div>
     </div>
     <div class="btn-area">
       <button id="btn-capture" class="btn btn-primary" onclick="captureAndRegister()" disabled>Capture &amp; Register Face</button>
@@ -441,9 +449,16 @@ function stopCamAndGo(view){ stopRegCam(); showView(view); }
 
 async function captureAndRegister(){
   const name=$('reg-name').value.trim();
+  const email=$('reg-email').value.trim();
+  const employerId=$('reg-employer-id').value.trim();
   if(!name){ toast('Enter your name first','err'); $('reg-name').focus(); return; }
+  if(!email){ toast('Enter your email ID','err'); $('reg-email').focus(); return; }
+  if(!employerId){ toast('Enter your employer ID','err'); $('reg-employer-id').focus(); return; }
+  const emailRegex=/^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if(!emailRegex.test(email)){ toast('Enter a valid email address','err'); $('reg-email').focus(); return; }
   const users=getUsers();
   if(users.find(u=>u.name.toLowerCase()===name.toLowerCase())){ toast('Name already registered','err'); return; }
+  if(users.find(u=>u.email.toLowerCase()===email.toLowerCase())){ toast('Email already registered','err'); return; }
   $('btn-capture').disabled=true;
   $('reg-status').className='status-bar detecting';
   $('reg-status-text').textContent='Capturing face descriptor…';
@@ -456,11 +471,13 @@ async function captureAndRegister(){
   }
   if(samples.length<3){ toast('No face detected. Try again.','err'); $('reg-status').className='status-bar error'; $('reg-status-text').textContent='No face detected'; $('btn-capture').disabled=false; return; }
   const avg=samples[0].map((_,i)=>samples.reduce((s,d)=>s+d[i],0)/samples.length);
-  const user={ id:crypto.randomUUID(), name, descriptor:avg, createdAt:new Date().toISOString(), lastLogin:null };
+  const user={ id:crypto.randomUUID(), name, email, employerId, descriptor:avg, createdAt:new Date().toISOString(), lastLogin:null };
   users.push(user); saveUsers(users);
   stopRegCam();
   toast(`${name} registered!`,'ok');
   $('reg-name').value='';
+  $('reg-email').value='';
+  $('reg-employer-id').value='';
   showView('view-login');
 }
 

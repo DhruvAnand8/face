@@ -21,6 +21,8 @@ const initialState = {
 function App() {
   const [state, setState] = useState(initialState);
   const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [employerId, setEmployerId] = useState('');
   const videoRef = useRef(null);
   const loginTimer = useRef(null);
   const scanStateRef = useRef({ motionDetected: false, noseHistory: [], running: false, startTime: 0 });
@@ -108,7 +110,28 @@ function App() {
   }
 
   async function handleRegister() {
-    if (!name.trim()) return;
+    const trimmedName = name.trim();
+    const trimmedEmail = email.trim();
+    const trimmedEmployerId = employerId.trim();
+    
+    if (!trimmedName) {
+      setState((s) => ({ ...s, scanState: 'error', statusMessage: 'Please enter your name.' }));
+      return;
+    }
+    if (!trimmedEmail) {
+      setState((s) => ({ ...s, scanState: 'error', statusMessage: 'Please enter your email ID.' }));
+      return;
+    }
+    if (!trimmedEmployerId) {
+      setState((s) => ({ ...s, scanState: 'error', statusMessage: 'Please enter your employer ID.' }));
+      return;
+    }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(trimmedEmail)) {
+      setState((s) => ({ ...s, scanState: 'error', statusMessage: 'Please enter a valid email address.' }));
+      return;
+    }
+    
     setState((s) => ({ ...s, scanState: 'capturing', statusMessage: 'Capturing your face…' }));
     try {
       await openCamera();
@@ -122,11 +145,13 @@ function App() {
       const res = await fetch(`${baseUrl}/api/users`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: name.trim(), descriptor: Array.from(descriptor) })
+        body: JSON.stringify({ name: trimmedName, email: trimmedEmail, employerId: trimmedEmployerId, descriptor: Array.from(descriptor) })
       });
       const user = await res.json();
       await loadUsers();
       setName('');
+      setEmail('');
+      setEmployerId('');
       setState((s) => ({ ...s, view: 'login', scanState: 'ready', statusMessage: `Registered ${user.name}.` }));
       startAutoLogin();
     } catch (error) {
@@ -309,7 +334,15 @@ function App() {
             <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Your name" />
           </div>
           <div className="form-row">
-            <button className="primary" onClick={handleRegister} disabled={!name.trim()}>Capture &amp; register</button>
+            <label>Email ID</label>
+            <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="your.email@company.com" type="email" />
+          </div>
+          <div className="form-row">
+            <label>Employer ID</label>
+            <input value={employerId} onChange={(e) => setEmployerId(e.target.value)} placeholder="EMP12345" />
+          </div>
+          <div className="form-row">
+            <button className="primary" onClick={handleRegister} disabled={!name.trim() || !email.trim() || !employerId.trim()}>Capture &amp; register</button>
             <button onClick={resetToLogin}>Cancel</button>
           </div>
           <div className="status-card">
